@@ -1,0 +1,1937 @@
+*-----------------------------------------------*
+* RAW DATA TO .dta FORMAT 
+* Created on: July 21st, 2023
+* Last modification date: July 2nd, 2024
+* By: Gabriela Lahera
+* Changes to the original file have been made
+* in accordance with confidentiality agreement
+*-----------------------------------------------*
+
+clear
+cls 
+
+*1. Data Directories.
+global raw ".../raw_data"
+global import ".../import"
+global keydata ".../keydata"
+global clean ".../clean"
+global analy ".../analysis"
+global out ".../output"
+global temp ".../temporary"
+
+*1. Database: 01 Ind Ene
+
+	*I. Importing Datasets. 
+	import excel "$raw/", sheet("01 Ind Ene") cellrange(A1:I6798) firstrow clear
+
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique varlist // no duplicates 
+	
+	*III. Rename variables
+	rename (varlist) (varlist)
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+		*i. cargo 
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo, "  ", " ", .)
+		replace cargo1 = subinstr( cargo, "Ñ", "N", .)
+		replace cargo1 = subinstr( cargo, "SUC", ", SUC", .)
+		gen cargo2 = regexr(cargo1, ",.*", "")
+		gen cargo3 = regexr(cargo2, " $", "")
+		drop cargo cargo1 cargo2
+		rename cargo3 cargo 
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "AVENIDA", "AV", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "BQUILLA", "BARRANQUILLA", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "VILLAVICENC", "VILLAVICENCIO", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "EÐ", "EN", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "OF. ", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina, "OF.", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 de noviembre", "11nov", .)
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		  
+		*ii. sucursal 
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal, "Ñ", "N", .)
+		replace sucursal1 = subinstr( sucursal, "  ", " ", .)
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		// remove numbers in front of the names. they seem to only enumerate them and not identify them. None of them show up [in company website that displays the offical names]
+		g suc1=substr(sucursal, 4, .) 
+		drop sucursal 
+		rename suc1 sucursal
+			
+	*VII. Make strings lower case 
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Creates a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label
+		*i. label data
+		label data "Employee level data with location information and their starting date"
+		
+		*ii. label variables 
+		label variable cc_asesor "Worker ID"
+		label variable cargo "Worker Position"
+		label variable fecing "Date Hired"
+		label variable ubicac "UNKNOWN"
+		label variable nombre_oficina "Branch Name"
+		label variable sucursal "Branch Region"
+		label variable vp "Branch Level"
+		label variable tipo "Type of Establishment"
+		label variable ccosto "UNKNOWN" 
+	
+	*IX. Save file	
+	format fecing %td
+	compress
+	save "$import/New_Files/planta_01_ind_ene.dta", replace 
+
+	
+*2. Database: planta_inf_integrales_2020
+
+	*I. Importing Datasets. 
+	clear
+	import excel "$raw/nopassword/Planta Asesores Pyme e Informadores 2020 Vs 2022.xlsx", sheet("Informadores integrales 2020") cellrange(A1:I1510) firstrow
+	// (9 vars, 1,509 obs)
+	
+	*II. Check duplicated. 
+	unique ID Cargo Fecing Ubicac // no duplicates 
+	
+	*III. Rename variables
+	rename (ID Of Suc) (cc_asesor nombre_oficina sucursal)
+	
+	*IV. Destring variables 
+	destring *, replace 
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings. Special characters to be removed were determined by carefully looking through the data summaries and raw data.
+
+		
+		*i. cargo
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo, "  ", " ", .)
+		replace cargo1 = subinstr( cargo, "Ñ", "N", .)
+		replace cargo1 = subinstr( cargo, "SUC", ", SUC", .)
+		gen cargo2 = regexr(cargo1, ",.*", "")
+		gen cargo3 = regexr(cargo2, " $", "")
+		drop cargo cargo1 cargo2
+		rename cargo3 cargo 
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "AVENIDA", "AV", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "BQUILLA", "BARRANQUILLA", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "VILLAVICENC", "VILLAVICENCIO", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "EÐ", "EN", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF. ", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF.", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 de noviembre", "11nov", .)
+		replace nombre_oficina1 = regexr(nombre_oficina1, " $", "")
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+
+		*ii. sucursal
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "Ñ", "N", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		// Remove numbers in front of strings. Explanation is under Database 01 of data dictionary
+		g suc1=substr(sucursal, 4, .) 
+		drop sucursal  
+		rename suc1 sucursal
+
+		
+	*VIII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*IX. Label 
+		*i. label data
+		label data "employee level data of desagregated office location"
+		
+		*ii. Label variables 
+		label variable cc_asesor "Worker ID"
+		label variable cargo "Worker Position"
+		label variable fecing "Date Hired"
+		label variable ccosto "UNKNOWN"
+		label variable ubicac "UNKNOWN"
+		label variable nombre_oficina "Branch Name"
+		label variable sucursal "Branch Region"
+	        label variable vp "Branch Level"
+		label variable tipo "Type of Establishment"
+	
+	*X. Save file
+	format fecing %td
+	compress
+	save "$import/New_Files/planta_inf_integrales_2020.dta", replace 
+	
+*3. Database: planta_asesores_pyme_2020
+
+	*I. Importing Datasets. 
+	clear
+	import excel "$raw/nopassword/Planta Asesores Pyme e Informadores 2020 Vs 2022.xlsx", sheet("Asesores Pyme Enero 2020") cellrange(A1:I196) firstrow
+	// (9 vars, 195 obs)
+	
+	*II. Check duplicated. 
+	unique ID Cargo Fecing Ubicac // no duplicates 
+	
+	*III. Rename variables
+	rename (ID Of Suc ) (cc_asesor nombre_oficina sucursal)
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+		*i. cargo 
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo1, "  ", " ", .)
+		replace cargo1 = subinstr( cargo1, "Ñ", "N", .)
+		replace cargo1 = subinstr( cargo1, "SUC", ", SUC", .)
+		replace cargo1 = regexr(cargo1, ",.*", "")
+		replace cargo1 = regexr(cargo1, " $", "")
+		drop cargo
+		rename cargo1 cargo 
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "AVENIDA", "AV", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "BQUILLA", "BARRANQUILLA", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "VILLAVICENC", "VILLAVICENCIO", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "EÐ", "EN", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF. ", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF.", "", .)
+		//when i run all of the code the line below doesn't affect the code but when 
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 de noviembre", "11nov", .)
+		replace nombre_oficina1 = regexr(nombre_oficina1, " $", "")
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		*iii.sucursal
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "Ñ", "N", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		// Remove numbers in front of strings. Explanation is under Dataset 1
+		g suc1=substr(sucursal, 4, .) 
+		drop sucursal 
+		rename suc1 sucursal
+	
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label 
+	
+		* i. label data 
+		label data "employee level data of acesores who sold pyme"
+		
+		* ii label variable cc_asesor "Worker ID"
+		label variable cargo "Worker Position"
+		label variable fecing "Date Hired"
+		label variable ccosto "UNKNOWN"
+		label variable nombre_oficina "Branch Name"
+		label variable sucursal "Branch Region"
+		label variable vp "Branch Level"
+		label variable tipo "Type of Establishment"
+		label variable ubicac "UNKNOWN"
+
+	*IX. Save file	
+	compress
+	save "$import/New_Files/planta_asesores_pyme_2020.dta", replace 
+	
+*4. Database: planta_asesores_pyme_2022
+
+	*I. Importing Datasets. 
+	clear
+	import excel "$raw/nopassword/Planta Asesores Pyme e Informadores 2020 Vs 2022.xlsx", sheet("Asesores Pyme Enero 2022") cellrange(A1:K144) firstrow
+	// (11 vars, 143 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique ID Cargo Ingreso Suc // no duplicates 
+	
+	*III. Rename variables
+	rename (ID Ingreso Dependencia Suc) (cc_asesor Fecing nombre_oficina sucursal)
+	rename Códigodecargo codigodecargo 
+	
+	*IV. Destring variables 
+	destring *, replace 
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+
+	*VI. Remove accents and special characters from strings
+	
+		*i. cargo 
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo, "  ", " ", .)
+		replace cargo1 = subinstr( cargo, "Ñ", "N", .)
+		replace cargo1 = subinstr( cargo, "SUC", ", SUC", .)
+		gen cargo2 = regexr(cargo1, ",.*", "")
+		gen cargo3 = regexr(cargo2, " $", "")
+		drop cargo cargo1 cargo2
+		rename cargo3 cargo 
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "AVENIDA", "AV", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "BQUILLA", "BARRANQUILLA", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "VILLAVICENC", "VILLAVICENCIO", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "EÐ", "EN", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF. ", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF.", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 de noviembre", "11nov", .)
+		replace nombre_oficina1 = regexr(nombre_oficina1, " $", "")
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		*ii. sucursal 
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "Ñ", "N", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		// remove numbers in front of the names. Explanation is under Dataset 1
+		g suc1=substr(sucursal, 4, .) 
+		drop sucursal 
+		rename suc1 sucursal
+	
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+		
+	*VIII. Label 
+		*i. Dataset description 
+		label data  "employee level data of agents who sold pyme in 2022"
+		
+		*ii. Variables 
+		label variable cc_asesor "Worker ID"
+		label variable codigodecargo "Worker Position Code"
+		label variable coddepen "UNKNOWN"
+		label variable ccosto "UNKNOWN"
+		label variable tipodecontrato "Type of Contract"
+		label variable cargo "Worker Position"
+		label variable fecing "Date Hired"
+		label variable nombre_oficina "Branch Name"
+		label variable sucursal "Branch Region"
+		label variable vp "Branch Level"
+		label variable tipo "Type of Establishment"
+		
+	*IX. Save file
+	format fecing %td 
+	compress
+	save "$import/New_Files/planta_asesores_pyme_2022.dta", replace 
+
+	
+*5. Database: planta_inf_intergrales_2022
+
+	*I. Importing Datasets. 
+	import excel "$raw/nopassword/Planta Asesores Pyme e Informadores 2020 Vs 2022.xlsx", sheet("Informadores Integrales 2022") cellrange(A1:K1463) firstrow clear
+	// (11 vars, 1,462 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique ID Cargo Ingreso Suc // no duplicates 
+	
+	*III. Rename variables
+	rename (ID Ingreso Dependencia Suc) (cc_asesor Fecing nombre_oficina sucursal)
+	rename Códigodecargo codigodecargo //temporary
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+		*i. cargo 
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo1, "  ", " ", .)
+		replace cargo1 = subinstr( cargo1, "ñ", "n", .)
+		replace cargo1 = subinstr( cargo1, "suc", ", suc", .)
+		replace cargo1 = regexr(cargo1, ",.*", "")
+		replace cargo1 = regexr(cargo1, " $", "")
+		drop cargo
+		rename cargo1 cargo  
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "AVENIDA", "AV", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "BQUILLA", "BARRANQUILLA", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "VILLAVICENC", "VILLAVICENCIO", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ð", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF. ", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "OF.", "", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 de noviembre", "11nov", .)
+		replace nombre_oficina1 = regexr(nombre_oficina1, " $", "")
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		*iii. sucursal 
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "ñ", "n", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		// remove numbers in front of the names. Explanation is under Dataset 1		
+		g sucursal1=usubstr(sucursal,4,.) 
+		drop sucursal
+		rename sucursal1 sucursal 
+		
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+		
+	*VIII. Label 
+		*i. Dataset description 
+		label data "Employee level data of position descriptors"
+		
+		*ii. Variables 
+		label variable cc_asesor "Worker ID"
+		label variable tipodecontrato "Type of Contract"
+		label variable cargo "Worker Position"
+		label variable fecing "Date Hired"
+		label variable nombre_oficina "Branch Name"
+		label variable sucursal "Branch Region"
+		label variable vp "Branch Level"
+		label variable tipo "Type of Establishment"
+		label variable codigodecargo "Worker Position Code"
+		label variable coddepen "UNKNOWN"
+		label variable ccosto "UNKNOWN"
+		
+	*IX. Save file
+	format fecing %td
+	compress
+	save "$import/New_Files/planta_inf_intergrales_2022.dta", replace 
+	
+	
+*6. Database: ventas_cajero_2021
+
+	*I. Importing Datasets. 
+	clear 
+	import excel "$raw/nopassword/Ventas Cajeros  2021_2022.xlsx", sheet("2021") firstrow
+	// (17 vars, 30,603 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique ID Cargo Producto_Definitivo Valor FechaMes // 30580 unique, 30603 in record 
+	
+	*III. Rename variables
+	rename (ID FechaMes Producto_Definitivo Valor Oficina CodOficinaPlanta) (cc_asesor fecha_mes producto valor_original nombre_oficina cod_oficina) //I am not sure this office names and codes are the same than the ones used in other datasets. 
+	
+	*IV. Destring variables 
+	destring *, replace
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+
+	*VI. Remove accents and special characters from strings
+	
+		*i. cargo 
+		gen cargo1 = ustrlower( ustrregexra( ustrnormalize( cargo, "nfd" ) , "\p{Mark}", "" )  )
+		replace cargo1 = subinstr( cargo1, "  ", " ", .)
+		replace cargo1 = subinstr( cargo1, "ñ", "n", .)
+		replace cargo1 = subinstr( cargo1, "suc", ", suc", .)
+		replace cargo1 = regexr(cargo1, ",.*", "")
+		replace cargo1 = regexr(cargo1, " $", "")
+		drop cargo
+		rename cargo1 cargo 
+		
+		*ii. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "ñ", "n", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "avenida", "av", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "bquilla", "barranquilla", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "villavicenc", "villavicencio", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "11 De Noviembre", "11nov", .)
+		replace nombre_oficina1 = regexr(nombre_oficina1, " $", "")
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		replace nombre_oficina="la union narino" if nombre_oficina=="La Union Nariï¿½O" 
+		replace nombre_oficina="la union valle" if nombre_oficina=="La Uniï¿½N Valle"
+		replace nombre_oficina="vehiculo" if nombre_oficina=="Vehï¿½Culo"
+		replace nombre_oficina="narino" if nombre_oficina=="Nariï¿½O"
+		replace nombre_oficina="ocana la catolica" if nombre_oficina=="Ocaï¿½A La Catï¿½Lica"
+		replace nombre_oficina="coordinacion" if nombre_oficina=="Coordinaciï¿½N"
+		replace nombre_oficina="canaveral" if nombre_oficina=="Caï¿½Averal"
+		replace nombre_oficina="penitas" if nombre_oficina=="Peï¿½Itas"
+		
+		*iii. sucursal 
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "ñ", "n", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursal
+		rename sucursal1 sucursal
+		replace sucursal="narino" if sucursal=="Nariï¿½O"
+		
+
+		*iv. oficinaplanta 
+		gen oficinaplanta1 = ustrlower( ustrregexra( ustrnormalize( oficinaplanta, "nfd" ) , "\p{Mark}", "" )  )
+		replace oficinaplanta1 = subinstr( oficinaplanta, " - ", " ", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "-", " ", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "ñ", "n", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "  ", " ", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "avenida", "av", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "bquilla", "barranquilla", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "villavicenc", "villavicencio", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "of. ", "", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "of.", "", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "11 De Noviembre", "11nov", .)
+		replace oficinaplanta1 = regexr(oficinaplanta1, " $", "")
+		
+		replace oficinaplanta1="parque narino" if oficinaplanta1=="Parque Nariï¿½O"
+		replace oficinaplanta1="ocana" if oficinaplanta1=="Ocaï¿½A "
+		replace oficinaplanta1="la union narino" if oficinaplanta1=="La Union Nariï¿½O "
+                replace oficinaplanta1="la union valle" if oficinaplanta1=="La Uniï¿½N Valle"
+		replace oficinaplanta1="la catolica" if oficinaplanta1=="La Catï¿½Lica"
+		replace oficinaplanta1="gerencia sucursal narino" if oficinaplanta1=="Gerencia Sucursal Nariï¿½O"
+		replace oficinaplanta1="canaveral" if oficinaplanta1=="Caï¿½Averal"
+		replace oficinaplanta1="av las penitas" if oficinaplanta1=="Av Las Peï¿½Itas"	
+		
+		drop oficinaplanta
+		rename oficinaplanta1 oficinaplanta
+		
+	*VII. Make strings lower case
+	
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label 
+	
+		*i. label data
+		label data "record of cashiers' sales, their date, value, location, and whether it was a digital transaction"
+		
+		*ii. label variables	
+		label variable cc_asesor "Worker ID"
+		label variable fecha_mes "Monthly Date"
+		label variable producto "Product"
+		label variable cantiadprodvendmovil "Products Sold by Mobile"
+		label variable valor_original "COP ammount sold"
+		label variable tipo_apertura "Opening Class"
+		label variable sucursal "Branch City-Region"
+		label variable regional "Branch Region"
+		label variable zona "Region type 3"
+		label variable nombre_oficina "Office Name"
+		label variable cod_oficina "Office Code"
+		label variable regionalplanta "Region of the Office type 2"
+		label variable sucursalplanta "Region of the Office type 3"
+		label variable zonaplanta "Region of the Worker type 3"
+		label variable cargo "Worker Position"
+		label variable marcaciondig "Type of transaction (digital vs normal)"
+		label variable oficinaplanta "" //undetermined, instructed to leave blank
+		
+		//variables that contain the word planta are location characteristics that are recorded even if no product was sold. However, nombre_oficina, sucursal, regional zona, and of course tipo_apertura are empty in the dataset when a product was not sold. 
+    //oficinaplanta and nombre_oficina are similar but some values are different. The cause of this variation is unclear, a little over half don't coincide.
+		
+	*IX. Save file
+	format fecha_mes %td
+	compress
+	save "$import/New_Files/ventas_cajero_2021.dta", replace 
+
+	
+* 7. Database: ventas_cajero_2022.dta
+
+	*I. Import dataset
+	clear 
+	import excel "$raw/nopassword/Ventas Cajeros  2021_2022.xlsx", sheet("2022") firstrow
+	//(15 vars, 48,552 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique ID Cargo Producto_Definitivo Valor FechaMes // 48435 unique, 48552 in record. 106 of the repeated observations come from products for which valor is 0. 
+                                                     // The remaining 11 are probably the result of selling a product with a fixed predetermined price (i.e. credit cards)
+	
+	*III. Rename variables
+	rename (ID FechaMes Producto_Definitivo Valor) (cc_asesor fecha_mes producto valor_original) 
+	//I am not sure thess office names and codes are the same than the ones used in other datasets. OficinaPlanta might be ofice names from other dataset. 
+	//Note that when a product is sold via mobile, it doesn't always count as a digital transaction.
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	}
+	
+	*VII. Remove accents and special characters from strings
+		
+		*i. oficinaplanta
+		gen oficinaplanta1 = ustrlower( ustrregexra( ustrnormalize( oficinaplanta, "nfd" ) , "\p{Mark}", "" )  )
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "Ñ", "N", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "ñ", "n", .)
+		replace oficinaplanta1 = subinstr( oficinaplanta1, "  ", " ", .)
+		replace oficinaplanta1 = regexr(oficinaplanta1, " $", "")
+		drop oficinaplanta
+		rename oficinaplanta1 oficinaplanta
+	
+		*ii. sucursal
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursalplanta, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursalplanta, "Ñ", "N", .)
+		replace sucursal1 = subinstr( sucursal1, "ñ", "n", .)
+		replace sucursal1 = subinstr( sucursal1, "  ", " ", .)
+		replace sucursal1 = regexr(sucursal1, " $", "")
+		drop sucursalplanta
+		rename sucursal1 sucursalplanta
+		
+		*iii. bolsa
+		gen bolsa1 = ustrlower( ustrregexra( ustrnormalize( bolsa, "nfd" ) , "\p{Mark}", "" )  )
+		replace bolsa1 = subinstr( bolsa, "Ñ", "N", .)
+		replace bolsa1 = subinstr( bolsa1, "ñ", "n", .)
+		drop bolsa
+		rename bolsa1 bolsa
+		
+	*VIII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*IX. Remove "zona" from zonaplanta
+		gen zonaplanta1 = ustrlower( ustrregexra( ustrnormalize( zonaplanta, "nfd" ) , "\p{Mark}", "" )  )
+		replace zonaplanta1 = subinstr( zonaplanta, "zona", "", .)
+		drop zonaplanta
+		rename zonaplanta1 zonaplanta
+		
+	*X. Label 
+		*i. label data
+		label data "Employee level data on transaction made by cajeros. it includes dates, value of transaction, quantity of sales per product that were carried on mobile, and if it was a digital transaction."
+		
+		*ii. label variables	
+		label variable cc_asesor "Worker ID"
+		label variable fecha_mes "Monthly Date"
+		label variable producto "Product"
+		label variable cantiadprodvendmovil "Products Sold by Mobile"
+		label variable valor_original "COP ammount sold"
+		label variable tipo_apertura "Opening Class"
+		label variable sucursal "Branch City-Region"
+		label variable regional "Branch Region"
+		label variable zona "Region type 3"
+		label variable regionalplanta "Region of the Office type 2"
+		label variable sucursalplanta "Region of the Office type 3"
+		label variable zonaplanta "Region of the Employee type 3"
+		label variable bolsa "Deposits or Placements"
+	
+	*XI. Save file
+	format fecha_mes %td
+	compress
+	save "$import/New_Files/ventas_cajero_2022.dta", replace 
+
+	
+*8. Dataset: mezcla_venta.dta
+
+	*I. Import dataset
+	clear 
+	import excel "$raw/nopassword/Data/Data Mezcla de Venta y Transaccional Monetaria", sheet("Venta") firstrow
+	// (10 vars, 23,157 obs)
+	
+	tab FECHA 
+	//2017-sep2022
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique FECHA PRODUCTO Subproducto Cantidad MontoUtilizado // 22352 unique observations, number of records is 23157. 
+	
+	*III. Rename variables
+	rename FECHA fecha_mes
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	}
+	
+	*VII. Remove accents and special characters from strings
+		*i. producto 
+		gen producto1 = ustrlower( ustrregexra( ustrnormalize( producto, "nfd" ) , "\p{Mark}", "" )  )
+		replace producto1 = subinstr( producto1, "Ñ", "N", .)
+		replace producto1 = subinstr( producto1, "ñ", "n", .)
+		replace producto1 = subinstr( producto1, "  ", " ", .)
+		replace producto1 = regexr(producto1, " $", "")
+		drop producto 
+		rename producto1 producto
+	
+		*ii. subproducto
+		gen subproducto1 = ustrlower( ustrregexra( ustrnormalize( subproducto, "nfd" ) , "\p{Mark}", "" )  )
+		replace subproducto1 = subinstr( subproducto1, "Ñ", "N", .)
+		replace subproducto1 = subinstr( subproducto1, "ñ", "n", .)
+		replace subproducto1 = subinstr( subproducto1, "  ", " ", .)
+		replace subproducto1 = regexr(subproducto1, " $", "")
+		replace subproducto1 = subinstr( subproducto1, " - ", " ", .)
+		replace subproducto1 = subinstr( subproducto1, "-", " ", .)
+		drop subproducto 
+		rename subproducto1 subproducto 
+
+	*VIII. Create monto_nonstr // monto variable contains string value "null", since I am not sure what it is in reference of I am creating a new variable that is numbering and replaces null for 0. There's variations in all the variables related to monto="null" except for montoutilizado, which always equals 0, as it does when monto=0
+	g monto_nonstr=monto 
+	replace monto_nonstr="0" if monto=="null"
+	destring monto_nonstr, replace
+	
+	*IX. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+			
+	*X. Label 
+		*i. label data
+		label data "Dissagregated product categories and the actors involved in the transaction"
+		
+		*ii. label variables	
+		label variable fecha_mes "Date"
+		label variable cantidad "Quantity"
+		label variable montoutilizado "Amount Utilized"
+		label variable agrupador_canal "Distribution Channel" 
+		label variable descripcion_canal "Desagregated Distribution Channel"
+		label variable clase "UNKNOWN"
+		label variable banca "Type of Client"
+		label variable producto "Product Name"
+		label variable monto "Amount Available (includes 'null')" 
+		label variable subproducto "Product Name Subcategories"
+		label variable monto_nonstr "Amount Available w/o strings"
+
+	*XI. Save file
+	format fecha_mes %td
+	compress
+	save "$import/New_Files/mezcla_venta.dta", replace 
+	
+	//under description_canal there are products described as "digital asistido" similar to the majority of the products in database ventas_cajeros_2022. there are also "concesionario asistido", the second term would be under "tipo_apertura" aka opening class
+
+	
+*9. Database: Desembolsos.xlsx
+
+	*I. Importing Datasets
+	clear 
+	import excel "$raw/nopassword/Data/Desembolsos/Desembolsos.xlsx", sheet("Desembolsos") allstring firstrow
+	//(7 vars, 434,280 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique Fecha_mes CodOficina Producto Cantidad // no duplicates 
+	
+	*III. Rename variables
+	rename (CodOficina Tipo_Producto) (cod_oficina clase_producto)
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+	replace sucursal="Narino" if sucursal=="Nariï¿½O"
+	
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label 
+		*i. label data
+		label data "office level data of product sales, quantity, and value"
+		
+		*ii. label variables	
+		label variable fecha_mes "Monthly Date"
+		label variable cod_oficina "Branch Code"
+		label variable sucursal "Branch Region"
+		label variable clase_producto "Product Class"
+		label variable producto "Product"
+		label variable valor "Disbursment"
+		label variable cantidad "Quantity"
+
+	*IX. Save file
+	compress
+	save "$import/New_Files/desembolsos.dta", replace
+	
+	
+*10. Database: saldos
+
+	*I. Importing Datasets
+	clear
+	import excel "$raw/nopassword/Data/Saldos/Saldos.xlsx", firstrow
+	//(7 vars, 168,552 obs)
+
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique Fecha_Mes CodOficina Tipo_Producto Banca Cantidad  //perfect coincidence no duplicated values.
+	
+	*III. Rename variables
+	rename (CodOficina Tipo_Producto) (cod_oficina clase_producto)
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+	replace sucursal="Narino" if sucursal=="Nariï¿½O"
+	
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label 
+		*i. label data
+		label data "location of ofices, including bancafe branches in Colombia"
+		
+		*ii. label variables	
+		label variable fecha_mes "Monthly Date"
+		label variable cod_oficina "Branch Code"
+		label variable sucursal "Branch City-Region"
+		label variable banca "Type of Client"
+		label variable clase_producto "Product Class"
+		label variable saldo "Balance"
+		label variable cantidad "Quantity"
+
+	*IX. Save file
+	compress
+	save "$import/New_Files/saldos.dta", replace
+	
+	
+*11. Database: base_oficina
+
+	*I. Importing Datasets
+	clear
+	import excel "$raw/nopassword/Data Dec 14-2022/Base de Oficinas con codigo.xlsx", cellrange(A6:G503) firstrow
+	//(7 vars, 497 obs)
+
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique CODIGONUEVO RED SUCURSAL	// perfect coincidence no duplicated values.
+	
+	*III. Rename variables
+	rename (NOMBREOFICINA CODIGONUEVO TIPOOFICINA) (nombre_oficina cod_oficina tipo_oficina)
+	//renamed CODIGONUEVO since 438 values were matched with crosswalk_oficina
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+	
+		*i. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "Ñ", "N", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, ".", "", .)
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		*ii. sucursal 
+		gen sucursal1 = ustrlower( ustrregexra( ustrnormalize( sucursal, "nfd" ) , "\p{Mark}", "" )  )
+		replace sucursal1 = subinstr( sucursal1, "Ñ", "N", .)
+		drop sucursal
+		rename sucursal1 sucursal
+		
+		*iii. tipo_oficina
+		gen tipo_oficina1 = ustrlower( ustrregexra( ustrnormalize( tipo_oficina, "nfd" ) , "\p{Mark}", "" )  )
+		drop tipo_oficina
+		rename tipo_oficina1 tipo_oficina
+	
+	*VIII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*IX. Label 
+		*i. label data
+		label data "office level data. ties office code to their name, location, and whether it is originally a Davivienda or Bancafe branch"
+		
+		*ii. label variables	
+		label variable cod_oficina "Office Code (Version 2)" 
+		label variable red "Network: Davivienta or Bancafe"
+		label variable regional "Branch Region"
+		label variable nombre_oficina "Office Code (Version 2)"
+		label variable sucursal "Branch City-Region"
+		label variable tipo_oficina "Office Type"
+		label variable urbanarural "Rural versus Urban Office."
+
+	*X. Save file
+	compress
+	save "$import/New_Files/base_oficina.dta", replace
+
+	
+*12. Dataset: Courses
+
+	*1. course_coaches_enddate "Coaches - Presencial"
+		*I. Importing Datasets
+		clear
+		import excel "$raw/nopassword/Data Dec 14-2022/BD Innovación.xlsx", cellrange(A1:C955) sheet("Coaches - Presencial") firstrow
+		//(3 vars, 954 obs)
+
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique idper Curso FechaFinalizaciónCurso // perfect coincidence no duplicated values.
+		
+		*III. Rename variables
+		rename (idper FechaFinalizaciónCurso) (cc_asesor fecha_mes)
+		
+		*IV. Destring variables 
+		destring *, replace //
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Remove accents and special characters from strings
+		gen curso1 = ustrlower( ustrregexra( ustrnormalize( curso, "nfd" ) , "\p{Mark}", "" )  )
+		replace curso1 = subinstr( curso1, " - ", " ", .)
+		replace curso1 = subinstr( curso1, "-", " ", .)
+		drop curso
+		rename curso1 curso
+		
+		*VII. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+		
+		*VIII. Create year variable to append 
+		gen year= year(fecha_mes)
+		destring year, replace 
+		
+		*IX. Label 
+			*i. label data
+			label data "employee level data on training `courses' and their enddates"
+			
+			*ii. label variables	
+			label variable cc_asesor "Worker  Id"
+			label variable fecha_mes "Program End Date"
+			label variable curso "Program Name"
+			label variable year "Year"
+		
+		*X. Save file
+		compress
+		save "$import/New_Files/course_coaches_enddate.dta", replace
+		
+	*2. Dataset: course_digital_2022 "Entrenamiento Digital"
+	
+		*I. Importing Datasets
+		clear
+		import excel "$raw/nopassword/Data Dec 14-2022/BD Innovación.xlsx", cellrange(A1:C122665) sheet("Entrenamiento Digital") firstrow
+		//(3 vars, 122,664 obs) 
+
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique idper Añocurso Curso // 95021 unique values, number of records is 122664. Employees take more than one course during a year
+		
+		*III. Rename variables
+		rename (idper Añocurso) (cc_asesor year)
+		
+		*IV. Destring variables 
+		destring *, replace 
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Remove accents and special characters from strings
+		gen curso1 = ustrlower( ustrregexra( ustrnormalize( curso, "nfd" ) , "\p{Mark}", "" )  )
+		drop curso
+		rename curso1 curso
+		
+		*VII. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+		
+		*VIII. Cleaning Course Names 
+			*i.Consolidate course names 
+			gen curso1=curso
+			replace curso1="skills_i fundamentos de innovacion davivienda" if curso1=="1. skills_i fundamentos de innovacion davivienda_oa" | curso1=="fundamentos de innovacion davivienda_skills_i"
+			replace curso1="skills_i investigacion davivienda" if curso1=="2. skills_i investigacion davivienda_oa"
+			replace curso1="skills_i ideacion y concepto" if curso1=="3. skills_i ideacion y concepto_oa"
+			replace curso1="skills_i prototipado y validacion" if curso1=="4. skills_i prototipado y validacion_oa"
+			replace curso1="skills_i filtros de innovacion y mvp"  if curso1=="5. skills i filtros de innovacion y mvp_oa" | curso1=="skills i filtros de innovacion y mvp"
+			replace curso1="skills_i pitch" if curso1=="6. skills_i pitch_oa"
+			replace curso1="skills_i propiedad intelectual" if curso1=="7. skills_i propiedad intelectual_oa" | curso1=="propiedad intelectual - skills i"
+			drop curso 
+			rename curso1 curso
+			
+			*i. drop "skills_i" -> seems to signal that the course was run in 2022. would become relevant if different skill level courses are found/introduced 
+			g curso11=curso
+			split curso11, p("skills_i"), if regexm(curso,"skills_i")==1
+			drop curso11 curso111 curso
+			rename curso112 curso 
+
+		*IX. Label 
+			*i. label data
+			label data "employee level data on courses taken in 2017 and 2022"	
+			
+			*ii. label variables	
+			label variable cc_asesor "Worker  Id"
+			label variable year "Year"
+			label variable curso "Program Name"
+		
+		*X. Save file
+		compress
+		save "$import/New_Files/course_digital_2022.dta", replace
+
+	*3. Dataset: course_tech_2021 "Tecnologías Exponenciales"
+		*I. Importing Datasets
+		clear
+		import excel "$raw/nopassword/Data Dec 14-2022/BD Innovación.xlsx", cellrange(A1:C49) sheet("Tecnologías Exponenciales") firstrow
+		// (3 vars, 48 obs)
+		
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique idper Curso Fecha // 34 unique values, number of records is 48
+		
+		*III. Rename variables
+		rename (idper Fecha) (cc_asesor fecha_mes) 
+		
+		*IV. Destring variables 
+		destring *, replace 
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Remove accents and special characters from strings
+		gen curso1 = ustrlower( ustrregexra( ustrnormalize( curso, "nfd" ) , "\p{Mark}", "" )  )
+		drop curso
+		rename curso1 curso
+		
+		*VII. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+		
+		*VIII. Create new variables 
+			*i. year
+			//Step 1: standardize fecha_mes variable 
+			replace fecha_mes = ""
+			destring fecha_mes, replace
+			replace fecha_mes = date("01jun2021", "DMY") if curso=="idc herzliya"
+			replace fecha_mes=date("30apr2021", "DMY") if curso=="mit"
+			
+			//Step 2: extract year from fecha_mes variable to create 'year' variable
+			gen year=2021
+			destring year fecha_mes, replace 
+			
+			*i. duration of the program 
+			g duration=3 if fecha_mes==date("30apr2021", "DMY")
+			
+		*IX. Label 
+			*i. label data
+			label data "employee level data on courses admistered by thrid parties"	
+			
+			*ii. label variables	
+			label variable cc_asesor "Worker Id"
+			label variable fecha_mes "Date"
+			label variable curso "Program Name"
+			label variable year "Year"
+			label variable duration "Number of Months"
+		
+		*X. Save file
+		compress
+		save "$import/New_Files/course_tech_2021.dta", replace
+		
+	*4. Append the three course databases
+	use "$import/New_Files/course_coaches_enddate.dta", clear
+	append using  "$import/New_Files/course_tech_2021.dta"
+	append using "$import/New_Files/course_digital_2022.dta"
+	
+	label data "Employee level data of courses taken between 2008 and 2022"
+	compress 
+	save "$import/New_Files/courses.dta", replace 
+
+	//who administered the courses? course_tech_2021 is done by third parties, what about the rest? 
+	
+*13. Dataset: inf_avg_ticket [producto: colocacion]
+
+	*I. Importing Datasets
+	clear
+	import excel "$raw/nopassword/Data Dec 14-2022/Comercial/Cantidad de Informadores y ticket promedio.xlsx", firstrow
+	//(4 vars, 58 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique FechaAñoymes Ticket Vendedores //no duplicates
+	
+	*III. Rename variables
+	rename (FechaAñoymes) (fecha_mes)
+
+	
+	*IV. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*V. Remove accents and special characters from strings
+	gen producto1 = ustrlower( ustrregexra( ustrnormalize( producto, "nfd" ) , "\p{Mark}", "" )  )
+	drop producto 
+	rename producto1 producto 
+	
+	*VI. Clean fecha_mes
+	replace fecha_mes = subinstr( fecha_mes, "ene", "jan", .)
+	replace fecha_mes = subinstr( fecha_mes, "abr", "apr", .)
+	replace fecha_mes = subinstr( fecha_mes, "ago", "aug", .)
+	replace fecha_mes = subinstr( fecha_mes, "dic", "dec", .)
+	
+	g date=date(fecha_mes, "M Y")
+	drop fecha_mes
+	rename date fecha_mes
+	
+	*VII. Destring variables 
+	destring *, replace 
+	
+	*VIII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*IX. Label 
+		*i. label data
+		label data "Number of colocacion tickets by informadores from 2018 to 2022"
+		
+		*ii. label variables 
+		label variable ticket "Ticket Number"
+		label variable vendedores "Seller Code" //does this code appear in other datasets?
+		label variable fecha_mes "Date"
+		label variable producto "Product Name"
+	
+	*X. Save file
+	format fecha_mes %d
+	compress
+	save "$import/New_Files/inf_avg_ticket.dta", replace
+
+*14. Dataset: ventas_ppp
+	*1. Dataset: ventas_patrimonial
+
+		*I. Importing Datasets
+		clear 
+		import excel "$raw/nopassword/Data Dec 14-2022/Comercial/Ventas ARE Patrimonial_Detalle general_Tabla dinamica.xlsx", firstrow 
+		// (5 vars, 69 obs)
+		
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique Año Regional Bolsa Valor Cantidad //no duplicates
+		
+		*III. Rename variables
+		rename (Año) (year)
+		
+		*IV. Destring variables 
+		destring *, replace //
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+		*VII. Drop sum values
+		drop if year==.
+		
+		*VIII. Create banca variable so that we know these variables correspond to sales "patrimonial" when appending 
+		g banca="patrimonial"
+		
+		*IX. Label 
+			*i. label data
+			label data "Quantity of deposits and their corresponding value in a branch region"
+			
+			*ii. label variables 
+			label variable year "Year"
+			label variable valor "Disbursment"
+			label variable cantidad "Quantity" 
+			label variable regional "Branch Region"
+			label variable bolsa "Deposits or Placements"
+			label variable banca "Type of Client"
+		
+		*X. Save file	
+		compress
+		save "$import/New_Files/ventas_patrimonial", replace
+		
+	*2. Dataset: ventas_personal
+		
+		*I. Importing datasets
+		clear 
+		import excel "$raw/nopassword/Data Dec 14-2022/Comercial/Ventas ARE Personas_Detalle general_Tabla dinamica.xlsx", firstrow 
+		// (5 vars, 66 obs)
+		
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique Año Regional Bolsa Valor Cantidad //no duplicates
+		
+		*III. Rename variables
+		rename (Año) (year)
+		
+		*IV. Destring variables 
+		destring *, replace //
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+				
+		*VII. Drop sum values
+		drop if year==.
+		
+		*VIII. Create banca variable so that we know these variables correspond to sales to people when appending 
+		g banca="personal"
+		
+		*IX. Label 
+			*i. label data
+			label data "Disbusments from personal accounts" //is this accurate?		
+			*ii. label variables 
+			label variable year "Year"
+			label variable valor "Disbursment"
+			label variable cantidad "Quantity" 
+			label variable regional "Branch Region"
+			label variable bolsa "Deposits or Placements"
+			label variable banca "Type of Client"
+			
+		*X. Save file	
+		compress 
+		save "$import/New_Files/ventas_personal", replace
+
+		
+	*3: Dataset: ventas_pyme
+
+		*I. Importing Datasets
+		clear 
+		import excel "$raw/nopassword/Data Dec 14-2022/Comercial/Ventas ARE PYME_Detalle general_Tabla dinamica.xlsx", firstrow 
+		// (5 vars, 66 obs)
+		
+		*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+		unique Año Regional Bolsa Valor Cantidad //no duplicates
+		
+		*III. Rename variables
+		rename (Año) (year)
+		
+		*IV. Destring variables 
+		destring *, replace //
+		
+		*V. Change variables to lower case 
+		foreach var of varlist _all {
+			local lower = lower("`var'")
+			rename `var' `lower'
+		} 
+		
+		*VI. Create banca variable so that we know these variables correspond to pyme sales when appending 
+		g banca="pyme"
+		
+		*VII. Make strings lower case
+			*i. Convert all string variables to lower case 
+			foreach var of varlist _all {
+			capture confirm string variable `var'
+			if _rc == 0 {
+			gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+			}
+				}
+			*ii. Drop the original string variables 
+			foreach var of varlist _all {
+			capture confirm string variable `var'_lower
+			if _rc == 0 {
+			drop `var'
+			}
+				}
+			*iii. Rename the newly created variables to the original variable names
+			foreach var of varlist _all {
+			if substr("`var'", length("`var'")-5, 7) == "_lower" {
+			local original_var = substr("`var'", 1, length("`var'")-6)
+			rename `var' `original_var'
+			}
+				}
+		*VIII. Drop sum values
+		drop if year==.
+		
+		*IX. Label 
+			*i. label data
+			label data "Disbusments and placements for pyme clients"
+			
+			*ii. label variables 
+			label variable year "Year"
+			label variable valor "Disbursment"
+			label variable cantidad "Quantity" 
+			label variable regional "Branch Region"
+			label variable bolsa "Deposits or Placements"
+			label variable banca "Type of Client"
+
+			
+		*X. Save file	
+		compress 
+		save "$import/New_Files/ventas_pyme", replace
+		
+	*4. Combine all three datasets 	
+	use "$import/New_Files/ventas_pyme", clear
+	append using "$import/New_Files/ventas_personal"
+	append using "$import/New_Files/ventas_patrimonial"
+	
+	label data "Deposits and Disbusments"
+	save "$import/New_Files/ventas_ppp.dta", replace 
+	
+*15. Dataset: lego_dates
+
+	*I. Importing datasets
+	clear 
+	import excel "$raw/nopassword/Data Jan 31 - 2022/Fechas cajero anfitrión - LEGO.xlsx", cellrange(A1:E497) firstrow 
+	//(5 var, 496 obs)
+	
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique CODIGO NOMBREOFICINA REGIONAL FECHAINMERSIÓN //no duplicates 
+	
+	*III. Rename variables
+	rename (NOMBREOFICINA FECHAINMERSIÓN CODIGO) (nombre_oficina fechainmersion cod_oficina)
+	// codigo was checked with crosswalk, 437 were matched  
+	
+	*IV. Destring variables 
+	destring *, replace //
+	
+	*V. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*VI. Remove accents and special characters from strings
+		*i. nombre_oficina
+		gen nombre_oficina1 = ustrlower( ustrregexra( ustrnormalize( nombre_oficina, "nfd" ) , "\p{Mark}", "" )  )
+	
+		replace nombre_oficina1 = subinstr( nombre_oficina1, " - ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "-", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "ñ", "n", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "  ", " ", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "avenida", "av", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "bquilla", "barranquilla", .)
+		replace nombre_oficina1 = subinstr( nombre_oficina1, "villavicenc", "villavicencio", .)
+		drop nombre_oficina
+		rename nombre_oficina1 nombre_oficina
+		
+		*ii. sucursal 
+		gen sucursal1=sucursal
+		replace sucursal1 = subinstr( sucursal, "Ñ", "N", .)
+		drop sucursal 
+		rename sucursal1 sucursal 
+		
+	*VII. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VIII. Label 
+		*i. label data
+		label data "Office level data on when the 'cajero anfitrion' program was implemented in each site"
+		
+		*ii. label variables 
+		label variable cod_oficina "Office Code"
+		label variable nombre_oficina "Office Name"
+		label variable regional "Branch Region"
+		label variable sucursal "Branch City-Region"
+		label variable fechainmersion "Immersion Date"
+
+	*IX. Save file
+	compress 
+	save "$import/New_Files/lego_dates.dta", replace
+	
+	
+*16. Dataset: datos_harvard
+
+	*I. Importing datasets
+	clear 
+	import excel "$raw/nopassword/Data/DATOS HARVARD_clean.xlsx", sheet("Mundo_total_clean") firstrow
+	//(9 vars, 570 obs)
+	
+	//unique command move to after new variables are created 
+	
+	*II. Rename variables
+	rename (Célula HD_Digital HD_Análogo NO_HD_Análogo) (celula fecing_digital fecing_analogo no_hd_analogo)
+	
+	*III. Destring variables 
+	destring *, replace //
+	
+	*IV. Change variables to lower case 
+	foreach var of varlist _all {
+		local lower = lower("`var'")
+		rename `var' `lower'
+	} 
+	
+	*V. Clean variable values 
+		*i. No_HD_Analogo 
+		g no_hd_analogo1=no_hd_analogo
+		replace no_hd_analogo1="1" if no_hd_analogo=="X"
+		replace no_hd_analogo1="0" if no_hd_analogo==""
+		drop no_hd_analogo
+		rename no_hd_analogo1 no_hd_analogo
+		destring no_hd_analogo, replace 
+		
+		*ii. fecing_digital 
+		// Step 1: Extract the date portion from the 'date' variable
+		gen fecing_digital1 = substr(fecing_digital, 8, .)
+		drop fecing_digital
+		rename fecing_digital1 fecing_digital
+	
+		gen month = substr(fecing_digital, 1, strpos(fecing_digital, "/") - 1)
+		gen year2 = substr(fecing_digital, strpos(fecing_digital, "/") + 1, .)
+		g day=01
+		
+		// Step 2: Convert the full date string to Stata daily date format
+		destring *, replace 
+		gen date = mdy(month,day,year2)
+
+		// Step 3: Format 'date' variable as %td
+		format date %d
+
+		// Step 4: Drop intermediate variables 
+		drop month day year2 fecing_digital
+		rename date fecing_digital
+		
+		*iii. fecing_analogo
+		// Step 1: Extract the date portion from the 'date' variable
+		gen fecing_analogo1 = substr(fecing_analogo, 8, .)
+		drop fecing_analogo
+		rename fecing_analogo1 fecing_analogo
+	
+		gen month = substr(fecing_analogo, 1, strpos(fecing_analogo, "/") - 1)
+		gen year2 = substr(fecing_analogo, strpos(fecing_analogo, "/") + 1, .)
+		g day=01
+		
+		// Step 2: Convert the full date string to Stata daily date format
+		destring *, replace 
+		gen date = mdy(month,day,year2)
+
+		// Step 3: Format 'date' variable as %td
+		format date %d
+
+		// Step 4: Drop intermediate variables 
+		drop month day year2 fecing_analogo
+		rename date fecing_analogo
+		
+		*iv. Store the values from the variables above into a date variable and a segmento_transaccional (as it appears in aperturas)
+		g segmento_transaccional=""
+		replace segmento_transaccional="digital" if fecing_digital!=. 
+		replace segmento_transaccional="analogo" if fecing_analog!=.
+		replace segmento_transaccional="no hd analogo" if no_hd_analogo==1
+
+		g date=fecing_analog // this variable needs a better name 
+		replace date=fecing_digital if fecing_digital!=.
+		format date %d
+		drop fecing_analog fecing_digital no_hd_analogo
+		
+		*v. producto
+		gen producto1 = ustrlower( ustrregexra( ustrnormalize( producto, "nfd" ) , "\p{Mark}", "" )  )
+		drop producto
+		rename producto1 producto
+		
+		*vi. celula
+		gen celula1 = ustrlower( ustrregexra( ustrnormalize( celula, "nfd" ) , "\p{Mark}", "" )  )
+		drop celula
+		rename celula1 celula
+		
+	*VI. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	
+	*VII. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique year subproducto segmento_transaccional	//
+	
+	*VIII. Label 
+		*i. label data
+		label data "Revenue generated from products"
+		
+		*ii. label variables 
+		label variable celula "UNKNOWN"
+		label variable producto "Product Name"
+		label variable subproductos "Product Subcategories Name"
+		label variable segmento_transaccional "Product Class"
+		label variable cantidad "Quantity"
+		label variable valor "Yearly Revenue"
+		label variable year "Year"
+		label variable date "Date the Product Was Introduced"
+		
+	*IX. Save file
+	compress 
+	save "$import/New_Files/datos_harvard.dta", replace
+	
+	//if we figure out what no_hd_analogo means
+	
+	//segmento_transaccional (i.e. "digital", "analogo") and clase_product (i.e. "active", "seguros") have the same description but the values look different. 
+	
+	
+*17. Dataset: ofeta_mobil
+
+	*I. Importing Datasets 
+	import excel "$raw/nopassword/Data/OFERTA MOVIL DAVIVIENDA_ Oferta Digital sector.xlsx", sheet("Clean") firstrow clear
+
+	*II. Check duplicated. (You want to see if there are duplicates and what is the structure of the data)
+	unique producto clase_producto year //no duplicates, 42 unique product 
+	
+	*III. Destring 
+	destring *, replace 
+	
+	*IV. Clean variable values 
+	gen producto1 = ustrlower( ustrregexra( ustrnormalize( producto, "nfd" ) , "\p{Mark}", "" )  )
+	drop producto
+	rename producto1 producto
+	
+	*V. Make strings lower case
+		*i. Convert all string variables to lower case 
+		foreach var of varlist _all {
+		capture confirm string variable `var'
+		if _rc == 0 {
+		gen `var'_lower = lower(`var')  // Create a new variable with lowercase strings
+		}
+			}
+		*ii. Drop the original string variables 
+		foreach var of varlist _all {
+		capture confirm string variable `var'_lower
+		if _rc == 0 {
+		drop `var'
+		}
+			}
+		*iii. Rename the newly created variables to the original variable names
+		foreach var of varlist _all {
+		if substr("`var'", length("`var'")-5, 7) == "_lower" {
+		local original_var = substr("`var'", 1, length("`var'")-6)
+		rename `var' `original_var'
+		}
+			}
+	*VI. Label 
+		*i. label data
+		label data "When products were offered digitally (mobile offer)"
+		
+		*ii. label variables 
+		label variable clase_producto "Product Clas"
+		label variable year "Year" 
+		label variable producto "Product Name"
+		
+		
+	*VII. Save file
+	compress 
+	save "$import/New_Files/oferta_mobil.dta", replace
+	
