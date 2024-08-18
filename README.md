@@ -19,4 +19,4 @@ Bachelor's degree, Economics and Mathematics,
 
 ## Contacts
 - LinkedIn: [@gabrielalaheravazquez](https://www.linkedin.com/in/gabriela-lahera/)
-- Email: parristianna@yahoo.com
+
