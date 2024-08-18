@@ -18,5 +18,5 @@ Bachelor's degree, Economics and Mathematics,
 2019 - 2024
 
 ## Contacts
-- LinkedIn: [@gabrielalaheravazquez]([https://www.linkedin.com/in/gabriela-lahera/])
+- LinkedIn: [@gabrielalaheravazquez](https://www.linkedin.com/in/gabriela-lahera/)
 - Email: parristianna@yahoo.com
