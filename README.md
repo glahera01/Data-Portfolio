@@ -12,7 +12,9 @@ This is a repository to showcase skills, share projects I have contributed to an
 
 ## Education
 Mount Holyoke College - South Hadley, Massachussetts:
+
 Bachelor's degree, Economics and Mathematics,
+
 2019 - 2024
 
 ## Contacts
