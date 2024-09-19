@@ -6,7 +6,6 @@ While completing my studies, I honed my ability to be a quick and independent le
 
 In my free time, I enjoy reading up on mathematical models, history, and new data tools; I am always looking for opportunities to expand my knowledge and skills. I am driven by the thrill of discovering new insights and the satisfaction of using data to solve complex problems. 
 
-My CV in [pdf](Gabriela_Lahera_CV.pdf).
 
 This is a repository to showcase skills, share projects I have contributed to and track my progress in Data Analytics / Data Science related topics. 
 
