@@ -15,12 +15,19 @@ Mount Holyoke College - South Hadley, Massachussetts:
 Bachelor's degree, Economics and Mathematics, 2019 - 2024
 
 Leadership Roles: 
+
 MHC Raunak Bhangra Dance Group 2019-2022
+
+
   Captain 2021-2022
+  
   Social Media Content Creator 2020-2021
   
 Five College Model UN Conference 2019-2021
+
+
   Secretary General 2020-2021
+  
   Assitant Under Secretary 2019-2020
 
 
