@@ -1,4 +1,4 @@
-# Gabriela Lahera - Data Analyst Portfolio
+# Gabriela Lahera - Data Science & Analyst Portfolio
 ## About
 Hello, I'm Gabriela! I have a background in ad-hoc data querying, data cleaning, visualization, and analytics, as well as varied experience as an educator. I seek to continue working with large complex datasets (previous experience in English and Spanish) and to developed a keen eye for ways to improve team efficiency. Complimentary, I have training in intergroup dialogue, conflic remediation, and effictive communication skills.
 
